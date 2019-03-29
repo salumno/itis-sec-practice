@@ -36,59 +36,75 @@ public class Serpent {
 
     private final static int G = 0x9e3779b9;
 
-    public String encrypt(final String plain, final String key) throws DecoderException {
+    public String encrypt(final String plain, final String key) {
+        byte[] plainText = getBytesFromHexString(plain);
+        byte[] secret = getBytesFromHexString(key);
 
-        final byte[] plainText = Hex.decodeHex(plain);
-        final byte[] secret = Hex.decodeHex(key);
+        if (plainText != null && secret != null) {
+            final List<byte[]> keys = generateKeys(secret);
 
-        final List<byte[]> keys = generateKeys(secret);
+            byte[] c = ip(plainText);
 
-        byte[] c = ip(plainText);
+            for (int i = 0; i < 31; i++) {
+                final int power = i % 8;
+                final byte[] currentKey = keys.get(i);
+                final byte[] xorResult = xor(c, currentKey);
+                c = l(
+                        s(xorResult, power)
+                );
+            }
 
-        for (int i = 0; i < 31; i++) {
-            final int power = i % 8;
-            final byte[] currentKey = keys.get(i);
-            final byte[] xorResult = xor(c, currentKey);
-            c = l(
-                    s(xorResult, power)
+            final byte[] intermediateSResult = s(
+                    xor(c, keys.get(31)),
+                    7
             );
+            c = xor(intermediateSResult, keys.get(32));
+
+            c = fp(c);
+
+            return Hex.encodeHexString(c);
         }
 
-        final byte[] intermediateSResult = s(
-                xor(c, keys.get(31)),
-                7
-        );
-        c = xor(intermediateSResult, keys.get(32));
-
-        c = fp(c);
-
-        return Hex.encodeHexString(c);
+        return null;
     }
 
-    public String decrypt(final String encrypted, final String key) throws DecoderException {
-        final byte[] encryptedText = Hex.decodeHex(encrypted);
-        final byte[] secret = Hex.decodeHex(key);
+    public String decrypt(final String encrypted, final String key) {
+        byte[] encryptedText = getBytesFromHexString(encrypted);
+        byte[] secret = getBytesFromHexString(key);
 
-        final List<byte[]> keys = generateKeys(secret);
+        if (secret != null && encryptedText != null) {
+            final List<byte[]> keys = generateKeys(secret);
 
-        byte[] b = ip(encryptedText);
+            byte[] b = ip(encryptedText);
 
-        final byte[] intermediateInvertedSResult = s(
-                xor(b, keys.get(32)),
-                7
-        );
-        b = xor(intermediateInvertedSResult, keys.get(31));
+            final byte[] intermediateInvertedSResult = s(
+                    xor(b, keys.get(32)),
+                    7
+            );
+            b = xor(intermediateInvertedSResult, keys.get(31));
 
-        for (int i = 30; i > -1; i--) {
-            final int power = i % 8;
-            final byte[] currentKey = keys.get(i);
-            final byte[] invertedSResult = invertedS(invertedL(b), power);
-            b = xor(invertedSResult, currentKey);
+            for (int i = 30; i > -1; i--) {
+                final int power = i % 8;
+                final byte[] currentKey = keys.get(i);
+                final byte[] invertedSResult = invertedS(invertedL(b), power);
+                b = xor(invertedSResult, currentKey);
+            }
+
+            b = fp(b);
+
+            return  Hex.encodeHexString(b);
         }
 
-        b = fp(b);
+        return null;
+    }
 
-        return  Hex.encodeHexString(b);
+    private byte[] getBytesFromHexString(final String data) {
+        try {
+            return Hex.decodeHex(data);
+        } catch (final DecoderException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private List<byte[]> generateKeys(final byte[] secret) {
@@ -113,20 +129,18 @@ public class Serpent {
             for (int j = 8; j < 12; j++) {
                 byteBuffer.putInt(w[j]);
             }
-            final int currentSPower = (11 - i) % 8;
+            int currentSPower = (11 - i) % 8;
+            if (currentSPower < 0) {
+                currentSPower += 8;
+            }
             final byte[] sResult = s(byteBuffer.array(), currentSPower);
-            keys.add(p(sResult));
+            keys.add(ip(sResult));
 
             for (int j = 0; j < 8; j++) {
                 w[j] = w[j + 4];
             }
         }
         return keys;
-    }
-
-    private byte[] p(final byte[] data) {
-        // TODO
-        return null;
     }
 
     private byte[] ip(final byte[] bytes) {

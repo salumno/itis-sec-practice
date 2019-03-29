@@ -1,14 +1,12 @@
 package ru.kpfu.itis.serpent.parser.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 public class Test {
     private int setNumber;
     private int vectorNumber;
